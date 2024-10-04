@@ -3,7 +3,8 @@
     "sign_backend": {
       "candid": "src/sign_backend/sign_backend.did",
       "package": "sign_backend",
-      "type": "rust"
+      "type": "rust",
+      "id": "bnz7o-iuaaa-aaaaa-qaaaa-cai"
     },
     "evm_rpc": {
       "type": "pull",

@@ -38,14 +38,14 @@ pub const EVM_RPC: EvmRpcCanister = EvmRpcCanister(EVM_RPC_CANISTER_ID);
 use crate::helper::estimate_transaction_fees;
 use crate::helper::get_network_config;
 use crate::helper::nat_to_u256;
-use crate::helper::nat_to_u64;
+
 
 
 
 fn key_id() -> EcdsaKeyId {
     EcdsaKeyId {
         curve: EcdsaCurve::Secp256k1,
-        name: "dfx_test_key".to_string(), // use EcdsaKeyId::default() for mainnet use test_key_1 for testnet and dfx_test_key for local deployment
+        name: "test_key_1".to_string(), // use EcdsaKeyId::default() for mainnet use test_key_1 for testnet and test_key_1 for local deployment
     }
 }
 
@@ -126,7 +126,13 @@ pub async fn send_eth(
 
     let transaction_result = EVM_RPC
         .eth_get_transaction_count(
-            RpcServices::EthSepolia(Some(vec![EthSepoliaService::Alchemy])),
+            RpcServices::Custom {
+                chainId: 84532,
+                services: vec![RpcApi {
+                    url: "https://base-sepolia.blockpi.network/v1/rpc/public".to_string(),
+                    headers: None,
+                }],
+            },
             None,
             get_transaction_count_args_clone,
             200_000_000_000_u128,
@@ -231,7 +237,13 @@ pub async fn send_eth(
 
     let result = EVM_RPC
     .eth_send_raw_transaction(
-        RpcServices::EthSepolia(Some(vec![EthSepoliaService::Alchemy])),
+        RpcServices::Custom {
+            chainId: 84532,
+            services: vec![RpcApi {
+                url: "https://base-sepolia.blockpi.network/v1/rpc/public".to_string(),
+                headers: None,
+            }],
+        },
         None,
         signed_tx.clone(),
         20_000_000_000,
@@ -248,7 +260,7 @@ match result {
     ((MultiSendRawTransactionResult::Consistent(status),),) => match status {
         SendRawTransactionResult::Ok(status) => Ok(evm_rpc_canister_types::SendRawTransactionResult::Ok(status)),
         SendRawTransactionResult::Err(e) => {
-            Err(format!("Error: ", ))
+            Err(format!("Error: {:?}", e))
         }
     },
     ((MultiSendRawTransactionResult::Inconsistent(_),),) => {

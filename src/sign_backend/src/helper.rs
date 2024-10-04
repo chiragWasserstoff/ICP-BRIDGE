@@ -23,6 +23,7 @@ pub fn get_network_config() -> (&'static str, &'static str) {
             "dfx_test_key",                               // ecdsa_key_local
         ),
         "mainnet" => (
+            
             "0xA2750976d1Ec8FF2c8Aeb0e46a9df6053e569931", // address_main
             "test_key_1",                                 // ecdsa_key_main
         ),
@@ -38,9 +39,9 @@ pub async fn nat_to_u64(nat: Nat) -> u64 {
 }
 
 pub async fn estimate_transaction_fees() -> (u128, u128, u128) {
-    const GAS_LIMIT: u128 = 51_000; // Gas limit
-    const MAX_FEE_PER_GAS: u128 = 30_000_000_000; // Updated max fee per gas to include priority fee
-    const MAX_PRIORITY_FEE_PER_GAS: u128 = 10_000_000_000; // Max priority fee per gas
+    const GAS_LIMIT: u128 = 60_000; // Gas limit
+    const MAX_FEE_PER_GAS: u128 = 60_000_000_000; // Updated max fee per gas to include priority fee
+    const MAX_PRIORITY_FEE_PER_GAS: u128 = 30_000_000_000; // Max priority fee per gas
 
     (GAS_LIMIT, MAX_FEE_PER_GAS, MAX_PRIORITY_FEE_PER_GAS)
 }

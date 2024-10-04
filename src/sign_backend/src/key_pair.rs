@@ -5,13 +5,51 @@ use ethers_core::types::Address;
 use ic_cdk::api::management_canister::ecdsa::{
     ecdsa_public_key, EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument,
 };
+
 use ic_cdk::id;
+
+use bs58;
 use k256::PublicKey;
-use serde::Serialize;
+use sha3::Digest;
 
 use lazy_static::lazy_static;
-use sha3::{Digest, Keccak256};
+use serde::{Deserialize, Serialize};
+use sha3::Keccak256;
 use std::sync::Mutex;
+
+type CanisterId = Principal;
+
+#[derive(CandidType, Serialize, Deserialize, Debug)]
+pub struct PublicKeyReply {
+    pub public_key_hex: String,
+}
+
+#[derive(CandidType, Serialize, Deserialize, Debug, Copy, Clone)]
+pub enum SchnorrAlgorithm {
+    #[serde(rename = "bip340secp256k1")]
+    Bip340Secp256k1,
+    #[serde(rename = "ed25519")]
+    Ed25519,
+}
+
+#[derive(CandidType, Serialize, Debug, Clone)]
+struct SchnorrKeyId {
+    pub algorithm: SchnorrAlgorithm,
+    pub name: String,
+}
+
+#[derive(CandidType, Serialize, Debug)]
+struct ManagementCanisterSchnorrPublicKeyRequest {
+    pub canister_id: Option<CanisterId>,
+    pub derivation_path: Vec<Vec<u8>>,
+    pub key_id: SchnorrKeyId,
+}
+
+#[derive(CandidType, Deserialize, Debug)]
+struct ManagementCanisterSchnorrPublicKeyReply {
+    pub public_key: Vec<u8>,
+    pub chain_code: Vec<u8>,
+}
 
 pub struct PublicKeyStore {
     pub public_key_hex: String,
@@ -37,17 +75,12 @@ impl PublicKeyStore {
 
 #[ic_cdk::update]
 pub async fn generate_key_pair() -> Result<String, String> {
-    let (_, ecdsa_key) = get_network_config(); // Destructure the tuple to get only the address
-
-    // Request the public key from the management canister
+    let (_, ecdsa_key) = get_network_config();
 
     let canister_principal = id();
     let canister_id_blob = ic_cdk::id().as_slice().to_vec();
 
-    // let derivation_path: Vec<Vec<u8>> = vec![vec![132, 121, 211], vec![102, 112, 213],vec![121, 234, 211]]; // Example derivation path
-    //  let derivation_path=[];
     let request = EcdsaPublicKeyArgument {
-      
         key_id: EcdsaKeyId {
             curve: EcdsaCurve::Secp256k1,
             name: ecdsa_key.to_string(),
@@ -92,4 +125,43 @@ fn pubkey_bytes_to_address(pubkey_bytes: &[u8]) -> String {
 
     let address = Address::from_slice(&hash[12..32]);
     ethers_core::utils::to_checksum(&address.into(), None)
+}
+
+#[ic_cdk::update]
+async fn generate_keypair_solana() -> Result<PublicKeyReply, String> {
+    let request = ManagementCanisterSchnorrPublicKeyRequest {
+        canister_id: None,
+        derivation_path: vec![],
+        key_id: SchnorrKeyId {
+            algorithm: SchnorrAlgorithm::Ed25519,
+            name: String::from("dfx_test_key"),
+        },
+    };
+
+    let (res,): (ManagementCanisterSchnorrPublicKeyReply,) = ic_cdk::call(
+        Principal::management_canister(),
+        "schnorr_public_key",
+        (request,),
+    )
+    .await // Add the await keyword
+    .map_err(|e| format!("schnorr_public_key failed {}", e.1))?;
+
+    // Generate or obtain the private key
+
+    ic_cdk::println!("res {:?}", res);
+    let public_key_bytes = res.public_key.to_vec();
+
+    if public_key_bytes.len() != 32 {
+        return Err("Invalid public key length; expected 32 bytes".to_string());
+    }
+
+    // Convert the public key to a Solana address (Base58 encoding)
+    // let solana_address = encode_base58(&public_key_bytes);
+    let solana_address = bs58::encode(public_key_bytes).into_string();
+    // let pubkey = Pubkey::new(&public_key_bytes);
+    ic_cdk::println!("Solana Address: {}", solana_address);
+
+    Ok(PublicKeyReply {
+        public_key_hex: hex::encode(&res.public_key),
+    })
 }

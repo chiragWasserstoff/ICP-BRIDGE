@@ -50,10 +50,16 @@ type RejectionCode = variant {
   SysFatal;
   CanisterReject;
 };
+
+type PublicKeyReply = variant {
+  public_key_hex : text;
+};
+
 type Result = variant { Ok : float64; Err : text };
 type Result_1 = variant { Ok : text; Err : text };
 type Result_2 = variant { Ok : SendRawTransactionResult; Err : text };
 type Result_3 = variant { Ok : MultiGetTransactionReceiptResult; Err : text };
+type Result_4 = variant { Ok : PublicKeyReply; Err : text };
 type RpcApi = record { url : text; headers : opt vec HttpHeader };
 type RpcError = variant {
   JsonRpcError : JsonRpcError;
@@ -109,4 +115,5 @@ service : {
   generate_key_pair : () -> (Result_1);
   send_eth : (text, float64, text) -> (Result_2);
   verify_trans : (text, text, text, text) -> (Result_3);
-}
+  get_logs : () -> (text);
+};
