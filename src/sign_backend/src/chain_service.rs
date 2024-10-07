@@ -11,11 +11,14 @@ use std::io::{self, Write};
 use std::rc::Rc;
 use std::time::Duration;
 
+use crate::helper::nat_to_u64;
 use crate::verify_txn::verify_trans;
+use evm_rpc_canister_types::Block;
+use evm_rpc_canister_types::MultiGetBlockByNumberResult::Consistent;
+
 
 use evm_rpc_canister_types::{
-    BlockTag, EvmRpcCanister, GetLogsArgs, GetLogsResult, MultiGetLogsResult, RejectionCode,
-    RpcApi, RpcError, RpcServices, SendRawTransactionResult, EVM_RPC,
+    BlockTag, EvmRpcCanister, GetBlockByNumberResult, GetLogsArgs, GetLogsResult, MultiGetBlockByNumberResult, MultiGetLogsResult, RejectionCode, RpcApi, RpcError, RpcServices, SendRawTransactionResult, EVM_RPC
 };
 
 #[derive(CandidType, Deserialize, Clone, Debug, Serialize)]
@@ -43,9 +46,8 @@ thread_local! {
 }
 
 thread_local! {
-    static BLOCK_NUMBER: RefCell<u64> = RefCell::new(86613992);
+    static BLOCK_NUMBER: RefCell<u64> = RefCell::new(86629822);
 }
-
 
 pub struct ChainService {
     canister_id: String,
@@ -400,30 +402,112 @@ impl ChainService {
 
         let latest_block_number = BLOCK_NUMBER.with(|block_num| *block_num.borrow());
 
-
         ic_cdk::println!(
             "Latest block number: {}, {} ",
             latest_block_number,
             latest_block_number + 499
         );
-        let to_block = latest_block_number + 499;
+        // let to_block = latest_block_number + 499;
+        // Call eth_get_block_by_number and unpack the tuple to get the block result
+        let (block_result,) = match EVM_RPC
+            .eth_get_block_by_number(
+                RpcServices::Custom {
+                    chainId: 421614,
+                    services: vec![RpcApi {
+                        url: "https://arbitrum-sepolia.gateway.tenderly.co".to_string(),
+                        headers: None,
+                    }],
+                },
+                None,
+                BlockTag::Latest,
+                2_000_000_000_u128,
+            )
+            .await
+        {
+            Ok(res) => res, // Unpack the tuple (containing `MultiGetBlockByNumberResult`)
+            Err(e) => {
+                ic_cdk::println!("Failed to get latest block, error: {:?}", e);
+                return; // Or handle the error accordingly
+            }
+        };
+
+        // Now extract the block number from `block_result`
+        // let to_block = match block_result.block {
+        //     Some(block) => block.number, // Replace 'number' with the correct field name for the block number
+        //     None => {
+        //         ic_cdk::println!("No block number found in the result.");
+        //         return; // Or handle the case where there's no block number
+        //     }
+        // };
+        // Use `to_block` in `fetch_logs`
+
+        ic_cdk::println!("block_result ,{:?}", block_result);
+
+        let to_block = match block_result {
+            Consistent(GetBlockByNumberResult::Ok(block)) => block.number,
+            Consistent(GetBlockByNumberResult::Err(e)) => {
+                ic_cdk::println!("Error retrieving block data: {:?}", e);
+                return; // Or handle the error case appropriately
+            }
+            _ => {
+                ic_cdk::println!("Unexpected result type.");
+                return; // Handle any other unexpected cases
+            }
+        };
+
         let _ = self
             .fetch_logs(
                 latest_block_number,
-                to_block,
+                nat_to_u64(to_block.clone()),
                 Some("0xffA175050d2B508Cf7Ac3F78C201d69cDE30Ca03".to_string()),
             )
             .await;
 
-            BLOCK_NUMBER.with(|block_num| {
-                *block_num.borrow_mut() = 0; // Resetting to 0 or another default value
-            });
+        // let to_block = match EVM_RPC
+        //     .eth_get_block_by_number(
+        //         RpcServices::Custom {
+        //             chainId: 421614,
+        //             services: vec![RpcApi {
+        //                 url: "https://arbitrum-sepolia.gateway.tenderly.co".to_string(),
+        //                 headers: None,
+        //             }],
+        //         },
+        //         None,
+        //         BlockTag::Latest,
+        //         2_000_000_000_u128,
+        //     )
+        //     .await
+        // {
+        //     Ok(block_result) => {
+        //         // Extract the block number from the result
+        //         if let Some(block) = block_result {
+        //             block.number // Replace 'number' with the correct field name that contains the block number
+        //         } else {
+        //             ic_cdk::println!("No block number found in the result.");
+        //             return; // or handle the case accordingly
+        //         }
+        //     }
+        //     Err(e) => {
+        //         ic_cdk::println!("Failed to get latest block, error: {:?}", e);
+        //         return; // or handle the error accordingly
+        //     }
+        // };
+
+        let _ = self
+            .fetch_logs(
+                latest_block_number,
+                nat_to_u64(to_block.clone()),
+                Some("0xffA175050d2B508Cf7Ac3F78C201d69cDE30Ca03".to_string()),
+            )
+            .await;
 
         BLOCK_NUMBER.with(|block_num| {
-            *block_num.borrow_mut() = to_block;
+            *block_num.borrow_mut() = 0; // Resetting to 0 or another default value
         });
 
-
+        BLOCK_NUMBER.with(|block_num| {
+            *block_num.borrow_mut() = nat_to_u64(to_block.clone())
+        });
 
         TRANSACTION_MAP.with(|map| {
                 let map = map.borrow();
@@ -452,13 +536,11 @@ impl ChainService {
     }
 }
 
-
 #[derive(CandidType, Deserialize, Serialize)]
 struct StableState {
     transaction_map: HashMap<String, TransactionDetails>,
     transaction_map_release: HashMap<String, TransactionReleaseDetails>,
     block_number: u64,
-
 }
 
 #[pre_upgrade]
@@ -467,7 +549,6 @@ fn pre_upgrade() {
     let transaction_map = TRANSACTION_MAP.with(|data| data.borrow().clone());
     let transaction_map_release = TRANSACTION_MAP_RELEASE.with(|data| data.borrow().clone());
     let block_number = BLOCK_NUMBER.with(|num| *num.borrow());
-
 
     let state = StableState {
         transaction_map,
@@ -490,7 +571,6 @@ fn post_upgrade() {
             TRANSACTION_MAP_RELEASE.with(|data| *data.borrow_mut() = state.transaction_map_release);
 
             BLOCK_NUMBER.with(|num| *num.borrow_mut() = state.block_number);
-
         }
         Err(e) => {
             ic_cdk::println!("Failed to restore stable state: {:?}", e);
