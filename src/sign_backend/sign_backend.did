@@ -116,4 +116,5 @@ service : {
   send_eth : (text, float64, text) -> (Result_2);
   verify_trans : (text, text, text, text) -> (Result_3);
   get_logs : () -> (text);
+  generate_keypair_solana:()->(Result_4);
 };
