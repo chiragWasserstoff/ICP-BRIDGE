@@ -47,7 +47,7 @@ thread_local! {
 }
 
 thread_local! {
-    static BLOCK_NUMBER: RefCell<u64> = RefCell::new(86856894);
+    static BLOCK_NUMBER: RefCell<u64> = RefCell::new(86870179);
 }
 
 pub struct ChainService {
@@ -55,6 +55,7 @@ pub struct ChainService {
     evm_rpc: EvmRpcCanister,
     last_checked_time: RefCell<u64>,
     timer_id: RefCell<Option<TimerId>>,
+    // 86871172
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -465,9 +466,16 @@ impl ChainService {
             heighest_block_number
         };
         // 86866018
+        // 86867263
     
         ic_cdk::println!("Fetching logs from_block: {}, to_block: {}", from_block, to_block);
         //latest block code here
+
+               // Update the global block number to the latest fetched block (to_block)
+          BLOCK_NUMBER.with(|block_num| {
+                *block_num.borrow_mut() = to_block; // Update block number to `to_block`
+         });
+            
 
 
         // Fetch logs between the determined blocks
@@ -483,11 +491,7 @@ impl ChainService {
             return;
         }
     
-        // Update the global block number to the latest fetched block (to_block)
-        BLOCK_NUMBER.with(|block_num| {
-            *block_num.borrow_mut() = to_block; // Update block number to `to_block`
-        });
-        
+ 
         // from_block=to_block;
         // Log transaction details
         TRANSACTION_MAP.with(|map| {

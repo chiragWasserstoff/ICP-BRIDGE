@@ -102,6 +102,7 @@ pub async fn verify_trans(
         return Err("Transaction already processed.".to_string());
     }
 
+    // 86867733
  
     use std::str::FromStr;
     let amount_nat =
