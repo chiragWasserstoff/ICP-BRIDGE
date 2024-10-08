@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use candid::{Nat, Principal};
 use evm_rpc_canister_types::MultiGetTransactionReceiptResult;
 use evm_rpc_canister_types::RpcServices;
@@ -12,6 +14,10 @@ use crate::send_eth;
 pub const EVM_RPC_CANISTER_ID: Principal =
     Principal::from_slice(b"\x00\x00\x00\x00\x02\x30\x00\xCC\x01\x01"); // 7hfb6-caaaa-aaaar-qadga-cai
 pub const EVM_RPC: EvmRpcCanister = EvmRpcCanister(EVM_RPC_CANISTER_ID);
+
+thread_local! {
+    static TRANSACTIONS: RefCell<Vec<String>> = RefCell::new(Vec::new());
+}
 
 #[ic_cdk::update]
 async fn fetch_crypto_prices_and_calculate_ethereum(amount_nat: f64) -> Result<f64, String> {
@@ -91,9 +97,12 @@ pub async fn verify_trans(
     dest_chain_id: String,
 ) -> Result<SendRawTransactionResult, String> {
     let trimmed_txn = txn.trim_matches('"');
- 
-     
 
+    if TRANSACTIONS.with(|transactions| transactions.borrow().contains(&trimmed_txn.to_string())) {
+        return Err("Transaction already processed.".to_string());
+    }
+
+ 
     use std::str::FromStr;
     let amount_nat =
         f64::from_str(&amount).map_err(|e| format!("Failed to convert amount to Nat: {:?}", e))?;
@@ -128,6 +137,12 @@ pub async fn verify_trans(
             ic_cdk::println!("caliingsend _eth ");
 
             let result = send_eth::send_eth(to, release_eth?, dest_chain_id).await;
+
+            TRANSACTIONS.with(|transactions| {
+                transactions.borrow_mut().push(trimmed_txn.to_string());
+            });
+
+
             return result;
         }
         _ => ic_cdk::println!("Unexpected result"),
@@ -137,3 +152,6 @@ pub async fn verify_trans(
 }
 
 // ic_cdk::export_candid!();
+
+
+// 86808260

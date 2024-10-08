@@ -1,11 +1,9 @@
 use candid::CandidType;
 use candid::{Nat, Principal};
 
-use evm_rpc_canister_types::{ EvmRpcCanister, RpcApi};
-
+use evm_rpc_canister_types::{EvmRpcCanister, RpcApi};
 
 use evm_rpc_canister_types::MultiGetTransactionReceiptResult;
-
 
 use ic_cdk::export_candid;
 
@@ -53,11 +51,8 @@ pub struct LogDetails {
 
 #[ic_cdk::update]
 pub async fn get_logs() -> String {
-
     let chain_service = ChainService::new("7hfb6-caaaa-aaaar-qadga-cai".to_string());
     chain_service.start_monitoring(Duration::from_secs(10));
 
     "Monitoring started".to_string()
 }
-
-

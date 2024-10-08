@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::io::Read;
 use std::str::FromStr;
 
@@ -102,6 +103,8 @@ pub async fn send_eth(
     amount: f64,
     dest_chain_id: String,
 ) -> Result<SendRawTransactionResult, std::string::String> {
+
+
     use ethers_core::types::U256;
     use evm_rpc_canister_types::RpcApi;
     use num_traits::ToPrimitive;

@@ -16,9 +16,10 @@ use crate::verify_txn::verify_trans;
 use evm_rpc_canister_types::Block;
 use evm_rpc_canister_types::MultiGetBlockByNumberResult::Consistent;
 
-
 use evm_rpc_canister_types::{
-    BlockTag, EvmRpcCanister, GetBlockByNumberResult, GetLogsArgs, GetLogsResult, MultiGetBlockByNumberResult, MultiGetLogsResult, RejectionCode, RpcApi, RpcError, RpcServices, SendRawTransactionResult, EVM_RPC
+    BlockTag, EvmRpcCanister, GetBlockByNumberResult, GetLogsArgs, GetLogsResult,
+    MultiGetBlockByNumberResult, MultiGetLogsResult, RejectionCode, RpcApi, RpcError, RpcServices,
+    SendRawTransactionResult, EVM_RPC,
 };
 
 #[derive(CandidType, Deserialize, Clone, Debug, Serialize)]
@@ -36,7 +37,7 @@ pub struct TransactionReleaseDetails {
     pub status: bool,
     pub releasetxn: Option<String>,
 }
-// 86628868
+
 thread_local! {
     static TRANSACTION_MAP: RefCell<HashMap<String, TransactionDetails>> = RefCell::new(HashMap::new());
 }
@@ -46,7 +47,7 @@ thread_local! {
 }
 
 thread_local! {
-    static BLOCK_NUMBER: RefCell<u64> = RefCell::new(86629822);
+    static BLOCK_NUMBER: RefCell<u64> = RefCell::new(86856894);
 }
 
 pub struct ChainService {
@@ -399,133 +400,228 @@ impl ChainService {
 
     async fn fetch_logs_and_update_time(&self) {
         ic_cdk::println!("start_monitoring.");
+    
+        // Read the last checked block number
+        let  from_block = BLOCK_NUMBER.with(|block_num| *block_num.borrow());
+        ic_cdk::println!("Read BLOCK_NUMBER: {}", from_block);
+    
+        // Fetch the highest block number from the transaction map or the chain
+        // let heighest_block_number = TRANSACTION_MAP.with(|map| {
+        //     let map = map.borrow();
+        //     map.values().map(|txn| txn.block_number).max() // Get the maximum block number
+        // });
 
-        let latest_block_number = BLOCK_NUMBER.with(|block_num| *block_num.borrow());
 
-        ic_cdk::println!(
-            "Latest block number: {}, {} ",
-            latest_block_number,
-            latest_block_number + 499
-        );
-        // let to_block = latest_block_number + 499;
-        // Call eth_get_block_by_number and unpack the tuple to get the block result
-        let (block_result,) = match EVM_RPC
-            .eth_get_block_by_number(
-                RpcServices::Custom {
-                    chainId: 421614,
-                    services: vec![RpcApi {
-                        url: "https://arbitrum-sepolia.gateway.tenderly.co".to_string(),
-                        headers: None,
-                    }],
-                },
-                None,
-                BlockTag::Latest,
-                2_000_000_000_u128,
+    
+
+
+                ic_cdk::println!("working under None");
+                // Fetch the latest block from the chain if no block is found in the map
+                let (block_result,) = match EVM_RPC
+                    .eth_get_block_by_number(
+                        RpcServices::Custom {
+                            chainId: 421614,
+                            services: vec![RpcApi {
+                                url: "https://arbitrum-sepolia.gateway.tenderly.co".to_string(),
+                                headers: None,
+                            }],
+                        },
+                        None,
+                        BlockTag::Latest,
+                        2_000_000_000_u128,
+                    )
+                    .await
+                {
+                    Ok(res) => res, // Unpack the tuple
+                    Err(e) => {
+                        ic_cdk::println!("Failed to get latest block, error: {:?}", e);
+                        return; // Handle error
+                    }
+                };
+    
+                // Process the block response
+                let heighest_block_number: u64 = match block_result {
+                    Consistent(GetBlockByNumberResult::Ok(block)) => {
+                        let block_number = nat_to_u64(block.number); // Convert Nat to u64 and store in variable
+                        block_number // Return the value to store in the outer block_number variable
+                    }
+                    Consistent(GetBlockByNumberResult::Err(e)) => {
+                        ic_cdk::println!("Error retrieving block data: {:?}", e);
+                        return; // Handle error
+                    }
+                    _ => {
+                        ic_cdk::println!("Unexpected result type.");
+                        return; // Handle unexpected cases
+                    }
+                };
+                
+
+        ic_cdk::println!(" heighest_block_number: {}, from_block: {}", heighest_block_number, from_block);
+    
+        // Safeguard to ensure the highest block is newer than the last checked block
+        let to_block = if heighest_block_number > (from_block + 499) {
+            from_block + 499
+        } else {
+            heighest_block_number
+        };
+        // 86866018
+    
+        ic_cdk::println!("Fetching logs from_block: {}, to_block: {}", from_block, to_block);
+        //latest block code here
+
+
+        // Fetch logs between the determined blocks
+        if let Err(e) = self
+            .fetch_logs(
+                from_block,
+                to_block,
+                Some("0xad9e21eDf34007100339566830fa3c978da4ea55".to_string()),
             )
             .await
         {
-            Ok(res) => res, // Unpack the tuple (containing `MultiGetBlockByNumberResult`)
-            Err(e) => {
-                ic_cdk::println!("Failed to get latest block, error: {:?}", e);
-                return; // Or handle the error accordingly
-            }
-        };
-
-        // Now extract the block number from `block_result`
-        // let to_block = match block_result.block {
-        //     Some(block) => block.number, // Replace 'number' with the correct field name for the block number
-        //     None => {
-        //         ic_cdk::println!("No block number found in the result.");
-        //         return; // Or handle the case where there's no block number
-        //     }
-        // };
-        // Use `to_block` in `fetch_logs`
-
-        ic_cdk::println!("block_result ,{:?}", block_result);
-
-        let to_block = match block_result {
-            Consistent(GetBlockByNumberResult::Ok(block)) => block.number,
-            Consistent(GetBlockByNumberResult::Err(e)) => {
-                ic_cdk::println!("Error retrieving block data: {:?}", e);
-                return; // Or handle the error case appropriately
-            }
-            _ => {
-                ic_cdk::println!("Unexpected result type.");
-                return; // Handle any other unexpected cases
-            }
-        };
-
-        let _ = self
-            .fetch_logs(
-                latest_block_number,
-                nat_to_u64(to_block.clone()),
-                Some("0xffA175050d2B508Cf7Ac3F78C201d69cDE30Ca03".to_string()),
-            )
-            .await;
-
-        // let to_block = match EVM_RPC
-        //     .eth_get_block_by_number(
-        //         RpcServices::Custom {
-        //             chainId: 421614,
-        //             services: vec![RpcApi {
-        //                 url: "https://arbitrum-sepolia.gateway.tenderly.co".to_string(),
-        //                 headers: None,
-        //             }],
-        //         },
-        //         None,
-        //         BlockTag::Latest,
-        //         2_000_000_000_u128,
-        //     )
-        //     .await
-        // {
-        //     Ok(block_result) => {
-        //         // Extract the block number from the result
-        //         if let Some(block) = block_result {
-        //             block.number // Replace 'number' with the correct field name that contains the block number
-        //         } else {
-        //             ic_cdk::println!("No block number found in the result.");
-        //             return; // or handle the case accordingly
-        //         }
-        //     }
-        //     Err(e) => {
-        //         ic_cdk::println!("Failed to get latest block, error: {:?}", e);
-        //         return; // or handle the error accordingly
-        //     }
-        // };
-
-        let _ = self
-            .fetch_logs(
-                latest_block_number,
-                nat_to_u64(to_block.clone()),
-                Some("0xffA175050d2B508Cf7Ac3F78C201d69cDE30Ca03".to_string()),
-            )
-            .await;
-
+            ic_cdk::println!("Error fetching logs: {}", e);
+            return;
+        }
+    
+        // Update the global block number to the latest fetched block (to_block)
         BLOCK_NUMBER.with(|block_num| {
-            *block_num.borrow_mut() = 0; // Resetting to 0 or another default value
+            *block_num.borrow_mut() = to_block; // Update block number to `to_block`
         });
-
-        BLOCK_NUMBER.with(|block_num| {
-            *block_num.borrow_mut() = nat_to_u64(to_block.clone())
-        });
-
+        
+        // from_block=to_block;
+        // Log transaction details
         TRANSACTION_MAP.with(|map| {
-                let map = map.borrow();
-                for (txn_hash, txn_details) in map.iter() {
-                    ic_cdk::println!(
-                        "Transaction Hash: {}, From: {}, To: {}, Amount: {}, Src Chain ID: {}, Dest Chain ID: {}, Block Number: {}",
-                        txn_hash,
-                        txn_details.from,
-                        txn_details.to,
-                        txn_details.amount,
-                        txn_details.src_chain_id,
-                        txn_details.dest_chain_id,
-                        txn_details.block_number
-                    );
-                }
-            });
+            let map = map.borrow();
+            for (txn_hash, txn_details) in map.iter() {
+                ic_cdk::println!(
+                    "Transaction Hash: {}, From: {}, To: {}, Amount: {}, Src Chain ID: {}, Dest Chain ID: {}, Block Number: {}",
+                    txn_hash,
+                    txn_details.from,
+                    txn_details.to,
+                    txn_details.amount,
+                    txn_details.src_chain_id,
+                    txn_details.dest_chain_id,
+                    txn_details.block_number
+                );
+            }
+        });
     }
 
+    //check for latest greater than the from_block + 500
+
+    // async fn fetch_logs_and_update_time(&self) {
+    //     ic_cdk::println!("start_monitoring.");
+
+    //     BLOCK_NUMBER.with(|block_num| {
+    //         println!("Initial_BLOCK_NUMBER: {}", *block_num.borrow());
+    //     });
+    
+    //     // Read the value
+    //     let from_block = BLOCK_NUMBER.with(|block_num| *block_num.borrow());
+    //     println!("Read BLOCK_NUMBER: {}", from_block);
+
+    //     let heighest_block_number = TRANSACTION_MAP.with(|map| {
+    //         let map = map.borrow();
+
+    //         // Retrieve the latest block number from the stored transactions
+    //         map.values().map(|txn| txn.block_number).max() // Get the maximum block number
+    //     });
+
+    //     let heighest_block_number = match heighest_block_number {
+    //         Some(num) => nat_to_u64(num.into()),
+    //         None => {
+    //             let (block_result,) = match EVM_RPC
+    //                 .eth_get_block_by_number(
+    //                     RpcServices::Custom {
+    //                         chainId: 421614,
+    //                         services: vec![RpcApi {
+    //                             url: "https://arbitrum-sepolia.gateway.tenderly.co".to_string(),
+    //                             headers: None,
+    //                         }],
+    //                     },
+    //                     None,
+    //                     BlockTag::Latest,
+    //                     2_000_000_000_u128,
+    //                 )
+    //                 .await
+    //             {
+    //                 Ok(res) => res, // Unpack the tuple (containing `MultiGetBlockByNumberResult`)
+    //                 Err(e) => {
+    //                     ic_cdk::println!("Failed to get latest block, error: {:?}", e);
+    //                     return; // Or handle the error accordingly
+    //                 }
+    //             };
+        
+    //             match block_result {
+    //                 Consistent(GetBlockByNumberResult::Ok(block)) => {
+    //                     // Assuming block.number is of type Nat
+    //                     nat_to_u64(block.number) // Convert Nat to u64, default to 0 on failure
+    //                 }
+    //                 Consistent(GetBlockByNumberResult::Err(e)) => {
+    //                     ic_cdk::println!("Error retrieving block data: {:?}", e);
+    //                     return; // Or handle the error case appropriately
+    //                 }
+    //                 _ => {
+    //                     ic_cdk::println!("Unexpected result type.");
+    //                     return; // Handle any other unexpected cases
+    //                 }
+                 
+    //             }
+           
+    //         }
+    //     };
+
+
+    //     ic_cdk::println!(" heighest_block_number {:?} from_block {:?}", heighest_block_number, from_block);
+
+
+    //     let to_block = if heighest_block_number < nat_to_u64(from_block.into()) + 499 {
+    //         // Convert heighest_block_number (which is likely of type Nat) to Nat
+    //         nat_to_u64(heighest_block_number.into()) // Assuming heighest_block_number is of type Nat
+    //     } else {
+    //         // Convert (from_block + 499) to Nat
+    //         nat_to_u64((from_block + 499).into())
+    //     };
+        
+    //     ic_cdk::println!(" from_block {:?} to_block {:?}", from_block, to_block);
+
+      
+    //     let _ = self
+    //         .fetch_logs(
+    //             from_block,
+    //             nat_to_u64(to_block.into()), // Pass the unwrapped u64
+    //             Some("0xad9e21eDf34007100339566830fa3c978da4ea55".to_string()),
+    //         )
+    //         .await;
+
+
+    //     BLOCK_NUMBER.with(|block_num| {
+    //         *block_num.borrow_mut() = 0; // Resetting to 0 or another default value
+    //     });
+
+    //     BLOCK_NUMBER.with(|block_num| {
+    //         *block_num.borrow_mut() = nat_to_u64(to_block.into()); // Now `to_block_value` is `u64`
+    //     });
+
+      
+    // }
+
+
+    // TRANSACTION_MAP.with(|map| {
+    //     let map = map.borrow();
+    //     for (txn_hash, txn_details) in map.iter() {
+    //         ic_cdk::println!(
+    //             "Transaction Hash: {}, From: {}, To: {}, Amount: {}, Src Chain ID: {}, Dest Chain ID: {}, Block Number: {}",
+    //             txn_hash,
+    //             txn_details.from,
+    //             txn_details.to,
+    //             txn_details.amount,
+    //             txn_details.src_chain_id,
+    //             txn_details.dest_chain_id,
+    //             txn_details.block_number
+    //         );
+    //     }
+    // });
     fn clone(&self) -> Self {
         ChainService {
             canister_id: self.canister_id.clone(),
@@ -577,3 +673,9 @@ fn post_upgrade() {
         }
     }
 }
+
+
+
+
+
+// 86842548 -- from 
