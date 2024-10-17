@@ -1,3 +1,4 @@
+use bs58::decode;
 use candid::CandidType;
 use candid::{Nat, Principal};
 
@@ -5,9 +6,11 @@ use evm_rpc_canister_types::{EvmRpcCanister, RpcApi};
 
 use evm_rpc_canister_types::MultiGetTransactionReceiptResult;
 
-use ic_cdk::export_candid;
-
+use evm_rpc_canister_types::SendRawTransactionResult;
+use crate::solana_txn::SignatureInfo;
 use serde::{Deserialize, Serialize};
+
+
 
 use std::time::Duration;
 
@@ -16,12 +19,14 @@ mod helper;
 mod key_pair;
 mod send_eth;
 mod verify_txn;
+mod solana_txn;
 
 use crate::chain_service::ChainService;
 pub const EVM_RPC_CANISTER_ID: Principal =
     Principal::from_slice(b"\x00\x00\x00\x00\x02\x30\x00\xCC\x01\x01"); // 7hfb6-caaaa-aaaar-qadga-cai
 pub const EVM_RPC: EvmRpcCanister = EvmRpcCanister(EVM_RPC_CANISTER_ID);
 
+#[derive(CandidType, Deserialize, Serialize, Debug)]
 pub struct PublicKeyReply {
     pub canister_principal: String,
     pub public_key_hex: String,
@@ -49,6 +54,8 @@ pub struct LogDetails {
     pub dest_chain_id: u64,
 }
 
+
+
 #[ic_cdk::update]
 pub async fn get_logs() -> String {
     let chain_service = ChainService::new("7hfb6-caaaa-aaaar-qadga-cai".to_string());
@@ -56,3 +63,7 @@ pub async fn get_logs() -> String {
 
     "Monitoring started".to_string()
 }
+
+
+
+ic_cdk::export_candid!();

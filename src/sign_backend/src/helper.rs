@@ -40,8 +40,8 @@ pub fn nat_to_u64(nat: Nat) -> u64 {
 
 pub async fn estimate_transaction_fees() -> (u128, u128, u128) {
     const GAS_LIMIT: u128 = 53_000; // Gas limit
-    const MAX_FEE_PER_GAS: u128 = 200_000_000_000; // Updated max fee per gas to include priority fee
-    const MAX_PRIORITY_FEE_PER_GAS: u128 = 100_000_000_000; // Max priority fee per gas
+    const MAX_FEE_PER_GAS: u128 = 500_000_000_000; // Updated max fee per gas to include priority fee
+    const MAX_PRIORITY_FEE_PER_GAS: u128 = 300_000_000_000; // Max priority fee per gas
 
     (GAS_LIMIT, MAX_FEE_PER_GAS, MAX_PRIORITY_FEE_PER_GAS)
 }

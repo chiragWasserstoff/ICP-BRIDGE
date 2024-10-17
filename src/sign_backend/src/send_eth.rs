@@ -1,12 +1,5 @@
-use std::cell::RefCell;
-use std::io::Read;
-use std::str::FromStr;
-
 use alloy_primitives::keccak256;
-
 use candid::{Nat, Principal};
-
-
 use ethers_core::types::Eip1559TransactionRequest;
 use ethers_core::types::H160;
 use evm_rpc_canister_types::EthSepoliaService;
@@ -18,19 +11,19 @@ use evm_rpc_canister_types::{
     BlockTag, EvmRpcCanister, GetTransactionCountArgs, GetTransactionCountResult,
     MultiGetTransactionCountResult,
 };
+
 use ethers_core::{abi::{Contract, Token}};
 use ic_cdk::api::management_canister::ecdsa::ecdsa_public_key;
 use ic_cdk::api::management_canister::ecdsa::sign_with_ecdsa;
 use ic_cdk::api::management_canister::ecdsa::EcdsaPublicKeyArgument;
 use ic_cdk::api::management_canister::ecdsa::EcdsaPublicKeyResponse;
 use ic_cdk::api::management_canister::ecdsa::SignWithEcdsaResponse;
-use ic_cdk::id;
 
-use alloy_consensus::{SignableTransaction, TxEip1559, TxEnvelope};
-use alloy_primitives::{hex, Signature, TxKind};
+
+use alloy_primitives::hex;
 use ethers_core::types::Address;
 use ic_cdk::api::management_canister::ecdsa::{EcdsaCurve, EcdsaKeyId, SignWithEcdsaArgument};
-use ic_cdk::update;
+
 
 pub const EVM_RPC_CANISTER_ID: Principal =
     Principal::from_slice(b"\x00\x00\x00\x00\x02\x30\x00\xCC\x01\x01"); // 7hfb6-caaaa-aaaar-qadga-cai
@@ -108,9 +101,9 @@ pub async fn send_eth(
     use ethers_core::types::U256;
     use evm_rpc_canister_types::RpcApi;
     use num_traits::ToPrimitive;
-    use std::str::FromStr; // Ensure you have this import for H160
+    use std::str::FromStr; 
 
-    let canister_principal = id();
+
     ic_cdk::println!("to: {:?}", to);
 
     let chain_id: u64 = dest_chain_id
@@ -118,7 +111,7 @@ pub async fn send_eth(
         .expect("Failed to parse chain ID");
 
     let block_tag = BlockTag::Latest;
-    let (canister_address, ecdsa_key) = get_network_config();
+    let (canister_address, _ecdsa_key) = get_network_config();
 
     let get_transaction_count_args = GetTransactionCountArgs {
         address: canister_address.to_string(),
@@ -186,7 +179,7 @@ pub async fn send_eth(
     ic_cdk::println!("amount_nat: {:?}", amount_nat);
     let public_key_hex = "02024f9cd747c0ad2ee7978b018d1a78021621429cc3bbc69c6e6a4a49436241b8";
 
-    let public_key_bytes = hex::decode(public_key_hex).expect("Failed to decode public key");
+    let _public_key_bytes = hex::decode(public_key_hex).expect("Failed to decode public key");
     const EIP1559_TX_ID: u8 = 2;
 
     let tx = Eip1559TransactionRequest {
@@ -227,7 +220,7 @@ pub async fn send_eth(
         url: custom_rpc_url.to_string(),
         headers: None,
     };
-    let rpc_service = RpcServices::Custom {
+    let _rpc_service = RpcServices::Custom {
         chainId: custom_chain_id,
         services: vec![custom_rpc_service],
     };
@@ -261,5 +254,6 @@ match result {
         Err("Status is inconsistent".to_string())
     }
 }
+
 
 }

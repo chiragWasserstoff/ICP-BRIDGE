@@ -1,6 +1,5 @@
+pub async send_sol(){
 
-
-
-pub async send_sol()->Result<>{
+    
 
 }

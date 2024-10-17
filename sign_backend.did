@@ -1,15 +1,3 @@
-type EthMainnetService = variant {
-  Alchemy;
-  BlockPi;
-  Cloudflare;
-  PublicNode;
-  Ankr;
-};
-type GetTransactionReceiptResult = variant {
-  Ok : opt TransactionReceipt;
-  Err : RpcError;
-};
-type HttpHeader = record { value : text; name : text };
 type HttpOutcallError = variant {
   IcError : record { code : RejectionCode; message : text };
   InvalidHttpJsonRpcResponse : record {
@@ -19,22 +7,6 @@ type HttpOutcallError = variant {
   };
 };
 type JsonRpcError = record { code : int64; message : text };
-type L2MainnetService = variant { Alchemy; BlockPi; PublicNode; Ankr };
-type LogEntry = record {
-  transactionHash : opt text;
-  blockNumber : opt nat;
-  data : text;
-  blockHash : opt text;
-  transactionIndex : opt nat;
-  topics : vec text;
-  address : text;
-  logIndex : opt nat;
-  removed : bool;
-};
-type MultiGetTransactionReceiptResult = variant {
-  Consistent : GetTransactionReceiptResult;
-  Inconsistent : vec record { RpcService; GetTransactionReceiptResult };
-};
 type ProviderError = variant {
   TooFewCycles : record { expected : nat; received : nat };
   MissingRequiredProvider;
@@ -52,24 +24,14 @@ type RejectionCode = variant {
 };
 type Result = variant { Ok : float64; Err : text };
 type Result_1 = variant { Ok : text; Err : text };
-type Result_2 = variant { Ok : SendRawTransactionResult; Err : text };
-type Result_3 = variant { Ok : MultiGetTransactionReceiptResult; Err : text };
-type RpcApi = record { url : text; headers : opt vec HttpHeader };
+type Result_2 = variant { Ok; Err : text };
+type Result_3 = variant { Ok : vec SignatureInfo; Err : text };
+type Result_4 = variant { Ok : SendRawTransactionResult; Err : text };
 type RpcError = variant {
   JsonRpcError : JsonRpcError;
   ProviderError : ProviderError;
   ValidationError : ValidationError;
   HttpOutcallError : HttpOutcallError;
-};
-type RpcService = variant {
-  EthSepolia : L2MainnetService;
-  BaseMainnet : L2MainnetService;
-  Custom : RpcApi;
-  OptimismMainnet : L2MainnetService;
-  ArbitrumOne : L2MainnetService;
-  EthMainnet : EthMainnetService;
-  Chain : nat64;
-  Provider : nat64;
 };
 type SendRawTransactionResult = variant {
   Ok : SendRawTransactionStatus;
@@ -81,20 +43,13 @@ type SendRawTransactionStatus = variant {
   NonceTooHigh;
   InsufficientFunds;
 };
-type TransactionReceipt = record {
-  to : text;
-  status : nat;
-  transactionHash : text;
-  blockNumber : nat;
-  from : text;
-  logs : vec LogEntry;
-  blockHash : text;
-  "type" : text;
-  transactionIndex : nat;
-  effectiveGasPrice : nat;
-  logsBloom : text;
-  contractAddress : opt text;
-  gasUsed : nat;
+type SignatureInfo = record {
+  err : opt text;
+  signature : text;
+  confirmationStatus : opt text;
+  memo : opt text;
+  slot : nat64;
+  blockTime : opt int64;
 };
 type ValidationError = variant {
   CredentialPathNotAllowed;
@@ -107,6 +62,12 @@ type ValidationError = variant {
 service : {
   fetch_crypto_prices_and_calculate_ethereum : (float64) -> (Result);
   generate_key_pair : () -> (Result_1);
-  send_eth : (text, float64, text) -> (Result_2);
-  verify_trans : (text, text, text, text) -> (Result_3);
+  generate_keypair_solana : () -> (Result_1);
+  get_logs : () -> (text);
+  get_program_data : (text) -> (Result_2);
+  get_signatures_for_address : (text) -> (Result_3);
+  process_decoding : (text) -> (Result_2);
+  send_eth : (text, float64, text) -> (Result_4);
+  send_swap_request : (text, text, text, nat64, opt float64) -> (Result_2);
+  verify_trans : (text, text, text, text) -> (Result_4);
 }

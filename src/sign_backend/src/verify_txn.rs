@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 
-use candid::{Nat, Principal};
-use evm_rpc_canister_types::MultiGetTransactionReceiptResult;
+use candid::{ Principal};
+
 use evm_rpc_canister_types::RpcServices;
 use evm_rpc_canister_types::SendRawTransactionResult;
 use evm_rpc_canister_types::{EvmRpcCanister, RpcApi};
@@ -102,8 +102,7 @@ pub async fn verify_trans(
         return Err("Transaction already processed.".to_string());
     }
 
-    // 86867733
- 
+
     use std::str::FromStr;
     let amount_nat =
         f64::from_str(&amount).map_err(|e| format!("Failed to convert amount to Nat: {:?}", e))?;
@@ -155,4 +154,3 @@ pub async fn verify_trans(
 // ic_cdk::export_candid!();
 
 
-// 86808260

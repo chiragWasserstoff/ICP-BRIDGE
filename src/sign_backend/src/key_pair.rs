@@ -128,7 +128,7 @@ fn pubkey_bytes_to_address(pubkey_bytes: &[u8]) -> String {
 }
 
 #[ic_cdk::update]
-async fn generate_keypair_solana() -> Result<PublicKeyReply, String> {
+async fn generate_keypair_solana() -> Result<String, String> {
     let request = ManagementCanisterSchnorrPublicKeyRequest {
         canister_id: None,
         derivation_path: vec![],
@@ -161,7 +161,5 @@ async fn generate_keypair_solana() -> Result<PublicKeyReply, String> {
     // let pubkey = Pubkey::new(&public_key_bytes);
     ic_cdk::println!("Solana Address: {}", solana_address);
 
-    Ok(PublicKeyReply {
-        public_key_hex: hex::encode(&res.public_key),
-    })
+    Ok(solana_address)
 }
